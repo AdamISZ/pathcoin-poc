@@ -3,9 +3,8 @@
 import struct
 from typing import List, Tuple
 import hashlib
-# TODO put OP_CHECKTEMPLATEVERIFY in this proj, don't patch bitcointx
 from bitcointx.core.script import (OP_CHECKSIG,
-        OP_CHECKTEMPLATEVERIFY, OP_CHECKLOCKTIMEVERIFY, CScript,
+        OP_NOP4, OP_CHECKLOCKTIMEVERIFY, CScript,
         OP_IF, OP_ELSE, OP_ENDIF, OP_DROP, OP_SHA256, OP_EQUALVERIFY,
         TaprootScriptTree, CScriptWitness)
 from bitcointx.core import (CTxIn, CTransaction, CMutableTransaction,
@@ -16,6 +15,7 @@ from config import SPENDING_TX_FEE_SATS, pc_single, COMMON_NSEQUENCE_VALUE
 
 BLOCKHEIGHT_WINDOW = pc_single().blockheight_window
 
+OP_CHECKTEMPLATEVERIFY = OP_NOP4
 #
 # (before discussing, a notation point: CTV(tA) -> (x) is
 # shorthand for, lock spending based on knowledge of t_A

@@ -16,7 +16,7 @@ from bitcointx.wallet import (CPubKey, P2TRCoinAddress,
 from bip340schnorr import int_from_bytes, tagged_hash, bytes_from_int
 # internal operations just needed to do point multiply without access to secp API
 # for tweak_mul:
-from bip340schnorr import point_mul, Point, lift_x, p
+from bip340schnorr import point_mul, lift_x, p
 from bip340schnorr import n as GROUPN
 from fidelitybonds import create_fidelity_bond_sPK
 from config import SPENDING_TX_FEE_SATS, PATHCOIN_FILENAME_PREFIX, pc_single
