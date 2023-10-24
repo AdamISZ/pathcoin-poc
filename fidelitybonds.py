@@ -12,6 +12,7 @@ from bitcointx.core import (CTxIn, CTransaction, CMutableTransaction,
 from bitcointx.core.key import CPubKey, CKey, XOnlyPubKey
 from bitcointx.wallet import P2TRCoinAddress
 from config import SPENDING_TX_FEE_SATS, pc_single, COMMON_NSEQUENCE_VALUE
+from utils import getNUMSKey
 
 BLOCKHEIGHT_WINDOW = pc_single().blockheight_window
 
@@ -79,9 +80,9 @@ def get_taproot_scriptpubkey_from_script(script: CScript) -> CScript:
     script, with no keypath spending.
     """
     tree = TaprootScriptTree([script])
-    # set a dummy internal pubkey;
-    # TODO: we must use the provably unspendable form as in BIP341 recommendation:
-    tree.set_internal_pubkey(CKey.from_secret_bytes(bytes([6]*32)).xonly_pub)
+    # set the NUMS internal pubkey;
+    internal_nums_pub = XOnlyPubKey(getNUMSKey())
+    tree.set_internal_pubkey(internal_nums_pub)
     return P2TRCoinAddress.from_script_tree(tree).to_scriptPubKey()
 
 def sha256(s) -> bytes:
@@ -299,9 +300,8 @@ def create_fidelity_bond_witness(txout: CTxOut, script: CScript,
     new_script = CScript(raw_script, name="pathcoin1")
     tree = TaprootScriptTree([new_script])
     # TODO: tidy up this repeat
-    # set a dummy internal pubkey;
-    # TODO: we must use the provably unspendable form as in BIP341 recommendation:
-    tree.set_internal_pubkey(CKey.from_secret_bytes(bytes([6]*32)).xonly_pub)    
+    internal_nums_pub = XOnlyPubKey(getNUMSKey())
+    tree.set_internal_pubkey(internal_nums_pub)
     s, cb = tree.get_script_with_control_block('pathcoin1')
     sh = s.sighash_schnorr(tx, 0, (txout,))
     sig = signing_key.sign_schnorr_no_tweak(sh)

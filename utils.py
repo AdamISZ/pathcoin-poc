@@ -2,6 +2,8 @@ import binascii
 import os
 import sys
 import json
+import hashlib
+import struct
 from typing import List
 
 from bitcointx.core import CTransaction, CTxIn, CTxOut
@@ -129,6 +131,25 @@ def get_random_bytes_32(n, start_offset=None, extra_offset=None):
     else:
         # note that `[os.urandom(32)] * n` would be an oopsie!
         return [os.urandom(32) for _ in range(n)]
+
+def getNUMSKey() -> CPubKey:
+    """ Deterministic (i.e) reproducible production of a NUMS public key.
+    """
+    for counter in range(256):
+        hashed_seed = hashlib.sha256(struct.pack(b'B', counter)).digest()
+        #Every x-coord on the curve has two y-values, encoded
+        #in compressed form with 02/03 parity byte. We just
+        #choose the former.
+        claimed_point = b"\x02" + hashed_seed
+        try:
+            nums_point = CPubKey(claimed_point)
+            # CPubKey does not throw ValueError or otherwise
+            # on invalid initialization data; it must be inspected:
+            assert nums_point.is_fullyvalid()
+            return nums_point
+        except:
+            continue
+    print("Oh dear.")
 
 def get_secret_from_spend(txhex: str, secret_offset: bytes,
                           adaptor_key: CPubKey,
