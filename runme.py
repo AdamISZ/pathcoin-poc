@@ -1,60 +1,49 @@
-# WORKFLOW
+#!/usr/bin/env python
 
-# The workflow has two main phases, and one recovery or punishment phase.
+"""
+WORKFLOW
 
-# MAIN PHASE 1
-#
-# All parties are online (here using *.onions) and share: keys, hashes and partial signatures.
-# Once all the non-secret data is shared, all parties will persist the state of the *potential* pathcoin
-# to a file.
-#
-# INTER-PHASE:
-# After phase 1, at some point, the initial owner has to fund the coin,
-# but others can ignore that.
-# During this same period, all members should fund the fidelity bond outputs.
-# Until this happens the coin is not active.
-#
-# MAIN PHASE 2
-#
-# Transfer:
-# Receiver needs to access the blockchain, to check the pathcoin is funded and to check
-# that the fidelity bond(s) exist as was promised.
-# Sender needs to connect to the receiver and send the data (partial sigs, adaptors, FB secrets).
-# Other members do not need to do this.
-#
-# Optional phase: RECOVER/PENALTY CLAIM
-# If timeout is passed, execute RECOVER: claim back own fidelity bond coin.
-# If a member has received the coin, then, during the time they hold it, they
-# can (periodically, or just before spending), check the blockchain to ensure
-# that previous owners have not claimed it. If they have, execute PENALTY
-# processing: take adaptor secret from blockchain signature and create spending
-# event from that member's fidelity bond.
-#
-#
-# Steps: 1/ input a set of remote destinations for counterparties
-# 2/ set the value of `N` and also of `index` (this has to be agreed out of band, since it's the flow of funds) and also of `coin amount`.
-# 3/ do 1/ but it has to be in order. Or write them in a config file.
-# 4/ Create a pathcoin context object.
-# 5/ Create a pathcoin context contribution object. Then a state object, and a signer.
-# 6/ Send the key data to the cps as per 1-3.
-# 7/ Wait to receive same as 6/
-# 8/ Now all the key data is shared we have a musig address. If we are index 0, prepare the funding tx and get the txid:n. Send it.
-# 9/ Otherwise receive the funding info.
-# 10/ Now do the musig negotiation, rounds 1,2.
-# 11/ Send our initial set of partial sigs.
-# 12/ Wait to receive our expected initial set of partial sigs.
-# 13/ All save state of pathcoin to file and can shut down.
-# 14/ Funder sends coins.
-# 15/ Some time later, wake up, check for funding. Status is "OK" and Alice has coins. Each party only needs to do this, independently, if they ever want to receive coins, otherwise they do nothing.
-# 16/ (Offline) Alice gives Bob the partial sig + adaptor set.
 
-# Receiving coin actions:
-# 1/ check that all parties previous have funded fidelity bond outputs of amount+delta
+The workflow has two main phases, and one recovery or punishment phase.
+
+SETUP PHASE
+
+ All parties are online (here using *.onions, or for testing on localhost with option --no-tor))
+ and share: keys, hashes and partial signatures.
+ Once all the non-secret data is shared, all parties will persist the state of the *potential* pathcoin
+ to a file.
+ This is split into two coordinated executions ("setup" and "presign") in this proof of concept, the idea
+ being that the first user can fund the prepared musig taproot address once it's created. In a real situation:
+ 
+ * this would actually be only one phase of interaction, not two
+ * the first participant prepares their funding tx by selecting utxos automatically within the application,
+   and prepares that unsigned transaction. Instead of directly funding, which should not be done until this phase
+   is completed in entirety, so that the first participant has *all* the other participants' partial signatures
+   on their own spending transaction.
+
+
+
+ NORMAL OPERATION
+
+ Transfer:
+ Using the 'send' method, sender creates a *.transfer file. This can be sent to the receiver
+ by any suitable method.
+ Receiver must check that sender's fidelity bond has been funded before accepting the coin.
+ (This can be done in advance, to avoid needing an internet connection to receive).
+
+ Optional phase: 'reclaim'/PENALTY CLAIM
+ If timeout is passed, execute 'reclaim': claim back own fidelity bond coin.
+ If a member has received the coin, then, during the time they hold it, they
+ can (periodically, or just before spending), check the blockchain to ensure
+ that previous owners have not claimed it. If they have, execute 'penalty'
+ processing: take adaptor secret from blockchain signature and create spending
+ event from that member's fidelity bond.
+
+"""
 
 import json
 from binascii import hexlify, unhexlify
 from typing import Tuple, Callable
-from optparse import OptionParser
 from hashlib import sha256
 from base64 import b64decode
 from twisted.protocols import basic
@@ -69,6 +58,7 @@ from bitcointx.wallet import CCoinAddress
 from bitcointx.core.script import CScriptWitness
 from utils import (utxostr_to_utxo, human_readable_transaction,
                    get_secret_from_spend)
+from cli_support import get_runme_parser, get_help
 from fidelitybonds import (create_fidelity_bond_reclaim_transaction,
                            create_fidelity_bond_penalty_tx)
 from pathcoin import (PathCoinContextContribution,
@@ -615,29 +605,16 @@ class PCLineClientFactory(protocol.ReconnectingClientFactory):
                         p: PCLineProtocol) -> None:
         self.message_receive_callback(message)
 
-parser = OptionParser(
-        usage='usage: %prog ["create"|"load"|"fund"|"sign"|"transfer"]'
-              '[my index] [number of participants] [receiving address] [coin amount sats]',
-        description=
-        'Create and use a pathcoin.'
-        ' Insert description.')
-parser.add_option('--bootstrap',
-    action='store_true',
-    dest='bootstrap',
-    default=False,
-    help=('If set to true, program just prints out .onion address'
-           'to share with counterparties'))
-parser.add_option('--no-tor',
-                  action='store_true',
-                  dest='testing',
-                  default=False,
-                  help=('If set to true, use localhost network'
-                        ' settings, set the destination as a port'
-                        ' which is implied to be on localhost.'))
+options, args = get_runme_parser()
 
-(options, args) = parser.parse_args()
-load_program_config()
 method = args[0]
+
+if method == "help":
+    get_help(args[1])
+    exit(0)
+
+load_program_config()
+
 myindex = int(args[1])
 ncounterparties = int(args[2])
 coin_amount = int(args[3])
@@ -653,12 +630,6 @@ else:
     onions = ["62444", "62445", "62446"]
 
 assert len(onions) == ncounterparties, "you must provide exactly one onion address per counterparty"
-
-# 5 actions are 'setup', 'presign', 'send', 'receive', 'spend', 'penalty'.
-# 'send' creates a file that represents transfer of ownership.
-# 'receive' parses that file and updates state.
-# After successful 'receive' (or first participant), can use 'spend' to broadcast a signed transaction to your address.
-# 'penalty' checks on blockchain for an illegal spend, and, if it finds it, takes the punishment secret and spends the penalty bond to your address.
 
 if method == "setup":
     my_destination = args[4]
@@ -683,6 +654,12 @@ if method == "send":
     x.transfer_coin()
 
 if method == "receive":
+    # TODO this method only validates the adaptor
+    # and partial signatures given by sender, in the file.
+    # The user either manually has to check that all
+    # preceding fidelity bonds were funded, or,
+    # we can include the ability to check that on the blockchain
+    # here, as an option.
     x.receive_coin(args[4])
 
 if method == "spend":

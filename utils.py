@@ -5,6 +5,7 @@ import json
 import hashlib
 import struct
 from typing import List
+from optparse import IndentedHelpFormatter
 
 from bitcointx.core import CTransaction, CTxIn, CTxOut
 from bitcointx.wallet import CCoinAddress, CCoinAddressError
@@ -18,6 +19,12 @@ DETERMINISTIC_TEST = True
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 EXIT_ARGERROR = 2
+
+# optparse munges description paragraphs. We sometimes
+# don't want that.
+class IndentedHelpFormatterWithNL(IndentedHelpFormatter):
+    def format_description(self, description):
+        return description
 
 def utxostr_to_utxo(x):
     if not isinstance(x, str):
