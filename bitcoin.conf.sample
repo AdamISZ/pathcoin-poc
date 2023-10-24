@@ -1,0 +1,10 @@
+[regtest]
+rpcuser=bitcoinrpc
+rpcpassword=123456abcdef
+fallbackfee=0.00005
+[signet]
+addnode=inquisition.bitcoin-signet.net
+rpcport = 38332
+rpcuser=bitcoinrpc
+rpcpassword=123456abcdef
+fallbackfee=0.00005
