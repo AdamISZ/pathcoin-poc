@@ -626,8 +626,8 @@ coin_amount = int(args[3])
 if options.bootstrap:
     onions = ["", "", ""]
 else:
-    #onions = ["6xapwqugm5i63625hqif45joly33h7nf63c6ecwr6feshybnkwiiutqd.onion", "w3rdalnxdslp5yqnh36shhmturmycnzlw3lvdyyvljcguw52llgcxjad.onion", "wbjpzqjmg66w2qvvantlrye2okgp73qwcqmoum7t7omqsd7gavzd47id.onion"]
-    onions = ["62444", "62445", "62446"]
+    onionstr = pc_single().config.get("NETWORK", "onions")
+    onions = onionstr.split(",")
 
 assert len(onions) == ncounterparties, "you must provide exactly one onion address per counterparty"
 

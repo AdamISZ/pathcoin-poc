@@ -95,26 +95,30 @@ defaultconfig = \
 # When using bitcoin-rpc-no-history remember to increase the gap limit to scan for more addresses, try -g 5000
 # Use 'no-blockchain' to run the ob-watcher.py script in scripts/obwatch without current access
 # to Bitcoin Core; note that use of this option for any other purpose is currently unsupported.
-blockchain_source = bitcoin-rpc
+blockchain_source = regtest
 
 # options: signet, testnet, mainnet
 # Note: for regtest, use network = testnet
-network = mainnet
+network = testnet
 
 rpc_host = localhost
 # default ports are 8332 for mainnet, 18443 for regtest, 18332 for testnet, 38332 for signet
-rpc_port =
+rpc_port = 18443
 
 # Use either rpc_user / rpc_password pair or rpc_cookie_file.
-rpc_user = bitcoin
-rpc_password = password
+rpc_user = bitcoinrpc
+rpc_password = 123456abcdef
 #rpc_cookie_file =
 
-# rpc_wallet_file is Bitcoin Core wallet which is used for address and
-# transaction monitoring (it is watchonly, no private keys are stored there).
-# It must be created manually if does not exist, see docs/USAGE.md for more
-# information.
+# rpc_wallet_file is not currently used here, can leave blank.
 rpc_wallet_file =
+
+[NETWORK]
+#Set the correct values for hidden services for each participant, after
+#each has done an initial run with `--bootstrap`.
+#onions = 6xapwqugm5i63625hqif45joly33h7nf63c6ecwr6feshybnkwiiutqd.onion,w3rdalnxdslp5yqnh36shhmturmycnzlw3lvdyyvljcguw52llgcxjad.onion,wbjpzqjmg66w2qvvantlrye2okgp73qwcqmoum7t7omqsd7gavzd47id.onion
+# use this alternative (ports) if you are running on localhost, and specify `--no-tor` as an option:
+onions=62444,62445,62446
 """
 
 def get_network() -> str:
@@ -162,8 +166,8 @@ def load_program_config(config_path: str = "") -> None:
     if len(loadedFiles) != 1:
         with open(global_singleton.config_location, "w") as configfile:
             configfile.write(defaultconfig)
-        pcprint("Created a new `joinmarket.cfg`. Please review and adopt the "
-              "settings and restart joinmarket.", "info")
+        pcprint("Created a new `pathcoin.cfg`. Please review and adopt the "
+              "settings and restart.", "info")
         sys.exit(EXIT_FAILURE)
 
     # configure the interface to the blockchain on startup
