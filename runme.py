@@ -546,7 +546,7 @@ class PCLineFactory(protocol.ServerFactory):
     """
     protocol = PCLineProtocol
 
-    def __init__(self, client: 'MS3AParticipant'):
+    def __init__(self, client):
         self.client = client
 
     def receive_message(self, message: PCMessage,
@@ -559,6 +559,16 @@ class PCLineFactory(protocol.ServerFactory):
     def register_disconnection(self, p: PCLineProtocol) -> None:
         pass
 
+class DummyClient(object):
+    """ do nothing protocol client to allow hidden service bootstrap
+    """
+    def receive_message(self, message, p):
+        pass
+    def onion_hostname_callback(self, hostname):
+        """ Just informational; allows bootstrapping,
+        by printing the hostname.
+        """
+        print("Started a hidden service at: ", hostname)
 class PCLineClientFactory(protocol.ReconnectingClientFactory):
     """ We define a distinct protocol factory for outbound connections.
     """
@@ -606,30 +616,30 @@ class PCLineClientFactory(protocol.ReconnectingClientFactory):
         self.message_receive_callback(message)
 
 options, args = get_runme_parser()
-
-method = args[0]
-
-if method == "help":
-    get_help(args[1])
-    exit(0)
-
-load_program_config()
-
-myindex = int(args[1])
-ncounterparties = int(args[2])
-coin_amount = int(args[3])
-
 # Sets these strings all to "", to bootstrap: your onion hostname will be printed (just *.onion, no port).
 # Then, after exchanging these strings with your counterparties, run without `--bootstrap` option
 # For non-tor usage, set the onions to localhost ports and specify `--no-tor` on the command line.
 # TODO put it in the config file
+
 if options.bootstrap:
     onions = ["", "", ""]
+    method = "nomethod"
+    myindex = args[0]
+    x = DummyClient()
 else:
+    method = args[0]
+    myindex = int(args[1])
+    ncounterparties = int(args[2])
+    coin_amount = int(args[3])
+    if method == "help":
+        get_help(args[1])
+        exit(0)
+
+    load_program_config()
+
     onionstr = pc_single().config.get("NETWORK", "onions")
     onions = onionstr.split(",")
-
-assert len(onions) == ncounterparties, "you must provide exactly one onion address per counterparty"
+    assert len(onions) == ncounterparties, "you must provide exactly one onion address per counterparty"
 
 if method == "setup":
     my_destination = args[4]
@@ -701,8 +711,11 @@ if method == "reclaim":
                                              [state.context.fb_hashlocks[i] for i in range(state.context.n)],
                                              state.context.get_final_fb_destination(),
                                              state.fb_spending_key)
-    # TODO: broadcast using the blockchain interface object:
+
     print(human_readable_transaction(signed_tx))
+    success = pc_single().bc_interface.pushtx(signed_tx.serialize())
+    msg = "Broadcast successful" if success else "Broadcast failed"
+    print(msg)
 
 if method == "penalty":
     idx_claiming_from = int(args[4])

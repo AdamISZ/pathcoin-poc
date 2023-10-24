@@ -102,6 +102,10 @@ The method is one of the following:
 (setup, presign, send, receive, spend, reclaim, penalty).
 For explanation of each of those methods, run:
 ./runme.py help [method]
+To run without tor use --no-tor, using localhost connections only.
+To run with tor, first time, do ./runme.py --bootstrap <myindex>
+and record the newly created *.onion address, add the full list
+of onion addresses in the NETWORK section of your pathcoin.cfg file.
 """
 
 def get_help(method):
