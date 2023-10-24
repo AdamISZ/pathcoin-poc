@@ -51,6 +51,9 @@ from twisted.internet import reactor, protocol, task
 from twisted.application.internet import ClientService
 from twisted.internet.endpoints import TCP4ClientEndpoint
 from txtorcon.socks import TorSocksEndpoint
+import bitcointx
+# must be done *first* before importing anything else out of the lib:
+bitcointx.set_custom_secp256k1_path("/usr/local/lib/libsecp256k1.so")
 from bitcointx.core import (COutPoint, CTxIn, CTxOut,
                             CMutableTransaction, CTxInWitness)
 from bitcointx.core.key import CPubKey, XOnlyPubKey, CKey
