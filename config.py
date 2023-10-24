@@ -116,7 +116,7 @@ rpc_wallet_file =
 [NETWORK]
 #Set the correct values for hidden services for each participant, after
 #each has done an initial run with `--bootstrap`.
-#onions = 6xapwqugm5i63625hqif45joly33h7nf63c6ecwr6feshybnkwiiutqd.onion,w3rdalnxdslp5yqnh36shhmturmycnzlw3lvdyyvljcguw52llgcxjad.onion,wbjpzqjmg66w2qvvantlrye2okgp73qwcqmoum7t7omqsd7gavzd47id.onion
+#onions = 6xapwqugm5i63625hqif45joly33h7nf63c6ecwr6feshybnkwiiutqd.onion,w3rdalnxdslp5yqnh36shhmturmycnzlw3lvdyyvljcguw52llgcxjad.onion,fypuvcanh2bqtm2s2kiakro2x2xxtkis3qgn5gl6t7gycxo5cawxzhyd.onion
 # use this alternative (ports) if you are running on localhost, and specify `--no-tor` as an option:
 onions=62444,62445,62446
 """

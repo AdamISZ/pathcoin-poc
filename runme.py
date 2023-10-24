@@ -631,12 +631,12 @@ if options.bootstrap:
     x = DummyClient()
 else:
     method = args[0]
-    myindex = int(args[1])
-    ncounterparties = int(args[2])
-    coin_amount = int(args[3])
     if method == "help":
         get_help(args[1])
         exit(0)
+    myindex = int(args[1])
+    ncounterparties = int(args[2])
+    coin_amount = int(args[3])
 
     load_program_config()
 
