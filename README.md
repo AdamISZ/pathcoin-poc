@@ -16,27 +16,9 @@ This implementation of the idea is very insecure (python ECC, no testing, nowher
 Still it does kind of work (you can fund, spend the musig outputs, transfer with files, reclaim bonds after timelock and penalties for illegal spends work in restricted cases for now).
 
 
-Will slowly add more details here:
+### Installation:
 
-### Dependencies/install:
-
-Zero-th thing to do is to download and compile [Bitcoin-Inquisition](https://github.com/bitcoin-inquisition/bitcoin) as mentioned above. That procedure is exactly the same as for standard Bitcoin Core. (As mentioned, this is *most* likely what you want but vanilla Core still "does something").
-
-First thing is to check you have Python 3.7 or higher (I have to double check, but .8 and above are for sure fine).
-
-Second, after cloning this repo into a local directory `pathcoin-poc`, go into it and then make a virtualenv:
-
-```
-python -m venv pcvenv
-```
-
-Next, activate it: `source pcvenv/bin/activate`.
-
-Then, install the requirements: `pip install -r requirements.txt`. Mostly this is the [twisted](https://github.com/twisted/twisted) network dependency, and the [python-bitcointx](https://github.com/Simplexum/python-bitcointx) dependency for the Bitcoin script and transaction coding. For those unfamiliar, this was a fork of python-bitcoinlib from years ago which was much more actively developed, though it shares the same syntax. As you notice in `requirements.txt` we need to take the latest commit, not the last release, because we need the full taproot functionality.
-
-Having done all that you're ready to run. The various functions are activated using arguments to `runme.py`.
-
-To see how to use `runme.py`: read `./runme.py --help`, and then `./runme.py help method` for the various methods.
+See [./INSTALL.md](INSTALL.md). These instructions have only been tested as working on Ubuntu 20.04.
 
 ### Workflow
 
