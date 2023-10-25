@@ -143,7 +143,7 @@ class PathCoinParticipant(object):
 
     def __init__(self, onions: Tuple[str], state: PathCoinParticipantState,
                  coin_amount: int):
-        self.myindex = myindex
+        self.myindex = myindex #uh, not ideal ... TODO
         self.state = state
         # convenience:
         self.context = self.state.context
@@ -160,9 +160,12 @@ class PathCoinParticipant(object):
                                   2: self.receive_funding_notification,
                                   3: self.receive_commitments,
                                   4: self.receive_nonces,
-                                  5: self.receive_initial_partials}
+                                  5: self.receive_initial_partials,
+                                  6: self.receive_commitments_received}
         self.contribs_sent = False
         self.setup_loop = None
+        self.commitments_accepted = [False] * self.context.n
+        self.commitments_accepted[self.myindex] = True
 
     def onion_hostname_callback(self, hostname):
         """ Just informational; allows bootstrapping,
@@ -310,7 +313,7 @@ class PathCoinParticipant(object):
         for i in range(self.context.n):
             if i == self.state.contrib_context.idx:
                 continue
-            self.send_commitment_exchange_message(i) 
+            self.send_commitment_exchange_message(i)
 
     def send_commitment_exchange_message(self, i: int) -> None:
         """ Sending to participant i, the nonce commitment
@@ -333,8 +336,23 @@ class PathCoinParticipant(object):
         except:
             print("Failed commitment exchange message: ", msg)
             return
-        complete = self.state.set_nonce_commitments(index, True, comms)
-        if complete:
+        self.state.set_nonce_commitments(index, True, comms)
+        self.send_commitments_received(index)
+
+    def send_commitments_received(self, idx: int) -> None:
+        msg = PCMessage(0, # signing session is ignored, we send for all signing sessions
+                        self.state.contrib_context.idx,
+                        "placeholder", 6)
+        self.send(idx, msg)
+
+    def receive_commitments_received(self, msg: PCMessage):
+        index = msg.get_counterparty_index()
+        self.commitments_accepted[index] = True
+        # TODO the sending should depend, also, on whether
+        # we have received commitments already from *all other*
+        # parties. THIS IS SECURITY CRITICAL! Don't use the
+        # code unless it's fixed.
+        if all(self.commitments_accepted):
             self.send_nonce_exchange_messages()
 
     def send_nonce_exchange_messages(self):
