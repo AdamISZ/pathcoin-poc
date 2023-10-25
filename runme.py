@@ -68,12 +68,12 @@ from pathcoin import (PathCoinContextContribution,
                       PathCoinParticipantState, PathCoinSigner,
                       PathCoinContext, PathCoinTransfer,
                       PathCoinTransferAggregate)
-port_base = 61529
+
 hostname = "localhost"
 ONION_VIRTUAL_PORT = 5321
 # How many seconds to wait before treating an onion
 # as unreachable
-CONNECT_TO_ONION_TIMEOUT = 60
+CONNECT_TO_ONION_TIMEOUT = 600
 from config import (PATHCOIN_FILENAME_PREFIX, load_program_config,
                     pc_single, SPENDING_TX_FEE_SATS)
 from hiddenservices import HiddenService
