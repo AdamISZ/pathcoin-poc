@@ -467,6 +467,8 @@ class PathCoinParticipantState(Serializable):
         self.set_nonce_commitments(cmt=True)
         # there will be `n` aggregate R values:
         self.agg_Rs = {}
+        # signal that we have finished nonce processing in this state:
+        self.all_nonces_complete = False
         # the participant state will also store, persistently, the set
         # of partial signatures which are transferred to us (or, ours).
         self.partial_sigs = {}
@@ -537,6 +539,9 @@ class PathCoinParticipantState(Serializable):
             # key_list.append(self.context.adaptor_keys[idx])
             self.agg_Rs[idx] = CPubKey.combine(*[CPubKey(np) for np in key_list])
             self.reset_base_nonce_with_aggR(idx)
+            # having completed setting of nonce values, we signal that
+            # nonces are ready for signature processing
+            self.all_nonces_complete = True
 
     def reset_base_nonce_with_aggR(self, idx: int, include_t: bool=False):
         """deduces whether the base nonce sign, for this

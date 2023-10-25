@@ -379,6 +379,19 @@ class PathCoinParticipant(object):
         spending events, once the partial signatures of all
         n participants have been received and verified.
         """
+        # This is the endpoint of the initial negotation with a
+        # single counterparty. To validate the partial signatures
+        # they send us, we have to know *all* the nonces for each
+        # signing session that they are providing partial sigs for.
+        # However it's possible for us to reach this point with
+        # counterparty X while counterparty Y has not yet sent us our
+        # nonces, and that means we can't correctly aggregate the nonce
+        # to verify the partial signature.
+        # For this reason we delay the processing of this, until we
+        # have a full set of nonces.
+        if not self.state.all_nonces_complete:
+            reactor.callLater(1.0, self.receive_initial_partials, msg)
+            return
         index = msg.get_counterparty_index()
         assert index != self.myindex
         partial_sigs = [unhexlify(x) for x in msg.get_vals()]
@@ -403,8 +416,8 @@ class PathCoinParticipant(object):
 
     def set_coin_fully_initialized(self):
         self.state.save(funding=True)
-        print("The pathcoin state file now contains the full informatoin required\n"
-              "to keep track of the coin. The initiator should fund it at the\n"
+        print("The pathcoin state file now contains the full information required "
+              "to keep track of the coin. The initiator should fund it at the "
               "address: {}. The pathcoin is now ready to use.".format(self.context.get_address()))
         #reactor.stop()
 
