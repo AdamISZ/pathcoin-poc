@@ -459,7 +459,7 @@ class PathCoinParticipant(object):
         2. Our partial signatures for their own signing session, and all
         the succeeding signing sessions.
         3. Our hashlock secret for all fidelity bonds for participants preceding
-        us, so that we can claim any fidelity bonds unlocked by spends of preceding
+        us, so that they can claim any fidelity bonds unlocked by spends of preceding
         signing sessions.
         4. (Optional?) For convenience, including utxo information about the fidelity
            bond, so the receiver can check funds were actually committed.
@@ -496,8 +496,8 @@ class PathCoinParticipant(object):
         else:
             # To create a file to give to k+1, we, as k, must read k-1
             # and update the object to save it to k.
-            with open(PATHCOIN_FILENAME_PREFIX + str(idx-1) + ".transfer", "rb") as f:
-                agg = PathCoinTransferAggregate.stream_deserialize(f)
+            agg = PathCoinTransferAggregate.read_from_file(
+                PATHCOIN_FILENAME_PREFIX + str(idx-1) + ".transfer", idx)
             agg.transfers.append(tfr)
             agg.save()
 
@@ -560,7 +560,7 @@ class PathCoinParticipant(object):
             self.state.contrib_context.idx)]]
         msg = ("Check that these fidelity bond addresses are funded: {} - "
               " with amount: {}. If they are, then: ".format(fbaddrs,
-            self.state.context.coin_amount))
+            int(self.state.context.coin_amount * pc_single().fidelity_bond_multiplier)))
         pcprint(msg, "info")
         msg = ("Congratulations! You are now the owner of the pathcoin of value {} "
               "at address {}, with utxo: {}. You can either spend it any time using "

@@ -3,7 +3,7 @@ import struct
 from typing import List, Union, Any, Tuple
 from hashlib import sha256
 from binascii import hexlify
-from base64 import b64encode
+from base64 import b64encode, b64decode
 from bitcointx.core import (CMutableTransaction, CTxOut, CMutableTxIn,
                             CMutableOutPoint)
 from bitcointx.core.serialize import (ByteStream_Type,
@@ -906,7 +906,6 @@ class PathCoinTransferAggregate(Serializable):
         if transfers is None:
             self.transfers = []
             self.add_this_transfer()
-        self.save()
 
     def add_this_transfer(self, idx: int, adaptor: bytes, partial_sigs) -> None:
         # The partial sigs arg can be the full set of partial sigs in the
@@ -914,14 +913,17 @@ class PathCoinTransferAggregate(Serializable):
         self.transfers.append(PathCoinTransfer(idx, adaptor, partial_sigs[idx][idx+1:]))
 
     def save(self):
-        # This is only used as initial persist by first index.
-        # (But in general it would always be at the index corresponding to
-        # the length of the transfers list).
         idx = len(self.transfers) - 1
         fn = PATHCOIN_FILENAME_PREFIX + str(idx) + ".transfer"
         with open(fn, "wb") as f:
             f.write(b64encode(self.serialize()))
         print("Transfer file has been saved to: ", fn)
+
+    @classmethod
+    def read_from_file(cls, filename: str, idx: int):
+        with open(filename, "rb") as f:
+            data = b64decode(f.read())
+        return cls.deserialize(data)
 
     def stream_serialize(self, f: ByteStream_Type, **kwargs: Any) -> None:
         """ Serializes the list of transfers, and `n`.
