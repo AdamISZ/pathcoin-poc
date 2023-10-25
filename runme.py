@@ -60,7 +60,7 @@ from bitcointx.core.key import CPubKey, XOnlyPubKey, CKey
 from bitcointx.wallet import CCoinAddress
 from bitcointx.core.script import CScriptWitness
 from utils import (utxostr_to_utxo, human_readable_transaction,
-                   get_secret_from_spend)
+                   get_secret_from_spend, pcprint)
 from cli_support import get_runme_parser, get_help
 from fidelitybonds import (create_fidelity_bond_reclaim_transaction,
                            create_fidelity_bond_penalty_tx)
@@ -275,9 +275,18 @@ class PathCoinParticipant(object):
         # A fully initialized context allows us to create the fidelity
         # bond scriptPubKeys:
         self.state.set_fidelity_bond_txout()
-        print("Our fidelity bond address is: ", CCoinAddress.from_scriptPubKey(
-            self.state.fidelity_bond_txout.scriptPubKey))
-        print("The funding address is: ", self.context.get_address())
+        msg = ("YOUR fidelity bond address is: {}".format(
+            CCoinAddress.from_scriptPubKey(
+            self.state.fidelity_bond_txout.scriptPubKey)))
+        pcprint(msg, "info")
+        msg = ("That address should be funded with {} sats, before you send "
+              "this pathcoin to the next recipient.".format(
+                  int(self.state.context.coin_amount * pc_single(
+                      ).fidelity_bond_multiplier)))
+        pcprint(msg, "info")
+        msg = ("The address of the PATHCOIN is: {}".format(
+            self.context.get_address()))
+        pcprint(msg, "info")
         self.state.save()
         # can't shut down because we might not have sent our own contribs out yet:
         #reactor.stop()
@@ -352,7 +361,6 @@ class PathCoinParticipant(object):
             idx=index, nonce_points=[unhexlify(x) for x in msg.get_vals()])
         if complete:
             # set aggregate Rs will have been called, we are ready to sign.
-            # TODO : code all the signatures that need to be created here.
             # Then code the sending of the correct subset to each counterparty.
             self.state.set_all_my_partial_signatures(*self.signer.set_all_partial_signatures())
             self.send_initial_partial_signatures()
@@ -416,13 +424,32 @@ class PathCoinParticipant(object):
 
     def set_coin_fully_initialized(self):
         self.state.save(funding=True)
-        print("The pathcoin state file now contains the full information required "
-              "to keep track of the coin. The initiator should fund it at the "
-              "address: {}. The pathcoin is now ready to use.".format(self.context.get_address()))
+        msg = ("The pathcoin state file now contains the full "
+               "information required to keep track of the coin. "
+               "Participant 0 should fund it at the address: {}. "
+               "The pathcoin is now ready to use.".format(
+                   self.context.get_address()))
+        pcprint(msg, "info")
+        msg = "You can spend this at any time." if \
+            self.state.contrib_context.idx == 0 else \
+            "This is currently held by participant 0."
+        pcprint(msg, "info")
+        fbaddrs = [CCoinAddress.from_scriptPubKey(y.scriptPubKey) for y in [
+            self.state.get_fidelity_bond_txout(
+            self.state.context.master_timelock, index=z) for z in range(
+            self.state.context.n)]]
+        msg = ("This is the list of fidelity bond addresses "
+               "for each participant:\n {}".format("\n".join(
+                   [str(i) + ":" + str(fbaddrs[i]) for i in range(
+                       self.state.context.n)])))
+        pcprint(msg, "info")
+        # We cannot shut down here because we don't know
+        # if all messages were sent.
+        # TODO fix this.
         #reactor.stop()
 
     def transfer_coin(self):
-        """ Creates a new file (*.transfer) containing a base64 TODO encoding
+        """ Creates a new file (*.transfer) containing a base64 encoding
         of the data to be given by us to the next participant,
         to effect transfer of funds. This consists of:
         1. a (verifiable) signature adaptor for our partial signature
@@ -524,14 +551,25 @@ class PathCoinParticipant(object):
         # we need to:
         state.save(funding=True)
         # All checks verified, at every expected index, we now have full control of the
-        # pathcoin.
-        print("Congratulations, you are now the owner of the pathcoin of value {} "
+        # pathcoin, *if* the fidelity bonds exist.
+        # TODO this warning isn't needed in future, since we can check the FBs under
+        # the hood using the bc_interface:
+        fbaddrs = [CCoinAddress.from_scriptPubKey(y.scriptPubKey) for y in [
+            self.state.get_fidelity_bond_txout(
+            self.state.context.master_timelock, index=z) for z in range(
+            self.state.contrib_context.idx)]]
+        msg = ("Check that these fidelity bond addresses are funded: {} - "
+              " with amount: {}. If they are, then: ".format(fbaddrs,
+            self.state.context.coin_amount))
+        pcprint(msg, "info")
+        msg = ("Congratulations! You are now the owner of the pathcoin of value {} "
               "at address {}, with utxo: {}. You can either spend it any time using "
               "method 'spend', or transfer it to the next person using 'send'.".format(
-                  self.context.spending_out.nValue, self.context.get_address(), self.context.outpoint))       
+                  self.context.spending_out.nValue, self.context.get_address(),
+                  self.context.outpoint))
+        pcprint(msg, "info")
 
 class PCLineProtocol(basic.LineReceiver):
-    # TODO: line limit length
     MAX_LENGTH = 40000
 
     def connectionMade(self):

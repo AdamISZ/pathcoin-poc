@@ -184,7 +184,6 @@ def prepare_fb_spending_tx(outpoint: COutPoint, fb_offset_value: int,
     vout = [CTxOut(nValue=fb_offset_value, scriptPubKey=payout_sPK)]
     tx = CMutableTransaction(vin, vout, nVersion=2)
     # transaction must also satisfy locktime requirement:
-    # TODO; this must vary per "depth" of the covenant
     # however, locktime remains at 0 if we are using the CTV clause:
     if ifelse:
         tx.nLockTime = blockheight

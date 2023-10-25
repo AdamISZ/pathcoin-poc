@@ -18,7 +18,7 @@ Still it does kind of work (you can fund, spend the musig outputs, transfer with
 
 ### Installation:
 
-See [./INSTALL.md](INSTALL.md). These instructions have only been tested as working on Ubuntu 20.04.
+See [INSTALL.md](./INSTALL.md). These instructions have only been tested as working on Ubuntu 20.04.
 
 ### Workflow
 

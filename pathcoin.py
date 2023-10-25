@@ -592,7 +592,7 @@ class PathCoinParticipantState(Serializable):
                                         fb_value,
                                         [self.context.fb_spending_keys[i] for i in range(self.context.n)],
                                         blockheight,
-                                        self.contrib_context.adaptor_key,
+                                        self.context.adaptor_keys[idx], #self.contrib_context.adaptor_key,
                                         [self.context.fb_hashlocks[i] for i in range(self.context.n)],
                                         final_fb_destination)[0]
 
