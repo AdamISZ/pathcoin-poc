@@ -432,12 +432,7 @@ class PathCoinParticipant(object):
             self.state.partial_sigs[i][index] = ps
         if failed:
             return
-        # if we have the full set that we expect on initialization,
-        # note that this is the case:
-        # examine *our* signing session and check that all sigs are
-        # present (though, our own one, will not have been sent):
-        if len(self.state.partial_sigs[
-            self.state.contrib_context.idx]) == self.context.n:
+        if self.state.are_signatures_populated_for_activation():
             self.set_coin_fully_initialized()
 
     def set_coin_fully_initialized(self):

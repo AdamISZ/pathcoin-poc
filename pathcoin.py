@@ -596,6 +596,54 @@ class PathCoinParticipantState(Serializable):
                                         [self.context.fb_hashlocks[i] for i in range(self.context.n)],
                                         final_fb_destination)[0]
 
+    def are_signatures_populated_for_activation(self) -> bool:
+        """
+        If we have the full set that we expect on initialization,
+         then the coin can be considered active. This set is
+         basically the upper triangle of the matrix, down to our row.
+         e.g. if 5 party and considering party at index 3:
+         x / / / /
+         x x / / /
+         x x x / /
+         x x x / /
+         x x x x x
+         it means that *including our own signatures we should have:
+         0..3 in row 4
+         0..3 in row 3 (not 0..2 because 3 is our own, and we have it)
+         0..1 in row 2
+         0 in row 1
+         nothing in row 0
+         (all zero-indexed)
+         for index 2:
+         x / / / /
+         x x / / /
+         x x / / /
+         x x x x x
+         x x x x x
+         for index 0:
+         x / / / /
+         x x x x x
+         x x x x x
+         x x x x x
+         x x x x x
+         """
+        idx = self.contrib_context.idx
+        n = self.context.n
+        for j in range(idx):
+            arr = [self.partial_sigs[k][j] for k in range(n)]
+            slice_of_sigs = arr[:j]
+            if any([x == b"\x00" for x in slice_of_sigs]):
+                return False
+        arr = [self.partial_sigs[k][idx] for k in range(n)]
+        if any([x == b"\x00" for x in arr[:idx+1]]):
+            return False
+        for j in range(idx+1, n):
+            arr = [self.partial_sigs[k][j] for k in range(n)]
+            slice_of_sigs = arr[:idx+1]
+            if any([x == b"\x00" for x in slice_of_sigs]):
+                return False
+        return True
+
     def human_readable(self, safe=True, funded=True) -> str:
         """ We will print out:
         1. index
