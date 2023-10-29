@@ -31,6 +31,8 @@ class PathCoinParticipantStateError(Exception):
 class PathCoinParticipantStateDeserializationError(PathCoinParticipantStateError):
     pass
  
+class PathCoinInvalidAdaptorSecret(PathCoinParticipantStateError):
+    pass
 
 def privkey_to_pubkey(privkey: bytes) -> CPubKey:
     key = CKey(privkey) # default compressed
@@ -571,6 +573,8 @@ class PathCoinParticipantState(Serializable):
         self.save()
 
     def register_illegal_adaptor_usage(self, secret: bytes, idx: int) -> None:
+        if secret == b"":
+            raise PathCoinStateInvalidAdaptorSecret()
         self.adaptor_secrets[idx] = secret
 
     def set_fidelity_bond_txout(self) -> None:

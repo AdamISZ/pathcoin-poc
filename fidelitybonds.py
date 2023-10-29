@@ -14,8 +14,6 @@ from bitcointx.wallet import P2TRCoinAddress
 from config import SPENDING_TX_FEE_SATS, pc_single, COMMON_NSEQUENCE_VALUE
 from utils import getNUMSKey
 
-BLOCKHEIGHT_WINDOW = pc_single().blockheight_window
-
 OP_CHECKTEMPLATEVERIFY = OP_NOP4
 #
 # (before discussing, a notation point: CTV(tA) -> (x) is
@@ -162,7 +160,7 @@ def create_fidelity_bond_sPK(n: int, idx: int, input_amount_sats: int,
             hash_image = fb_lock_hash_list[n - i - 2]
         current_out_sPK, current_script = pathcoin_fidelity_bond_script(
             XOnlyPubKey(spending_key_list[n - i - 2]),
-            blockheight - BLOCKHEIGHT_WINDOW * (n_txs - i - 2),
+            blockheight,
             XOnlyPubKey(T),
             current_ctv_hash,
             hash_image=hash_image)
@@ -246,7 +244,7 @@ def create_fidelity_bond_penalty_tx(idx_claimed_from: int, outpoint: COutPoint,
     txid1 = tx1.GetTxid()
     outpoint2 = COutPoint(txid1, 0)
     tx2 = prepare_fb_spending_tx(outpoint2, fb_value - SPENDING_TX_FEE_SATS*2,
-                                 payout_sPK, blockheight - BLOCKHEIGHT_WINDOW)
+                                 payout_sPK, blockheight)
     # for valid witness, need ELSE branch, and need to sign with t_A, T_A:
     witness2 = create_fidelity_bond_witness(txout=txout_for_tx2,
                                             script=script_for_tx2,

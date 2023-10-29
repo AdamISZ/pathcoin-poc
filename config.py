@@ -82,8 +82,6 @@ global_singleton.wait_for_commitments = 0
 # fidelity bonds are a bit higher than coin
 # values to align incentives. This is the multiplier:
 global_singleton.fidelity_bond_multiplier = 1.1
-# uh .. no idea really what this number should be:
-global_singleton.blockheight_window = 10
 
 def pc_single() -> AttributeDict:
     return global_singleton

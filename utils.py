@@ -189,6 +189,7 @@ def get_secret_from_spend(txhex: str, secret_offset: bytes,
     if not adaptor_key == purported_adaptor:
         print("Mismatch between derived secret, producing key: {}, and expected adaptor: {}".format(
             purported_adaptor, adaptor_key))
+        return b""
     return purported_adaptor_secret
     
 def human_readable_transaction(tx, jsonified=True):
