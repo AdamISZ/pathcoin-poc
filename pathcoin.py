@@ -574,7 +574,7 @@ class PathCoinParticipantState(Serializable):
 
     def register_illegal_adaptor_usage(self, secret: bytes, idx: int) -> None:
         if secret == b"":
-            raise PathCoinStateInvalidAdaptorSecret()
+            raise PathCoinInvalidAdaptorSecret()
         self.adaptor_secrets[idx] = secret
 
     def set_fidelity_bond_txout(self) -> None:
@@ -612,11 +612,11 @@ class PathCoinParticipantState(Serializable):
          x x x / /
          x x x x x
          it means that *including our own signatures we should have:
-         0..3 in row 4
-         0..3 in row 3 (not 0..2 because 3 is our own, and we have it)
-         0..1 in row 2
-         0 in row 1
-         nothing in row 0
+         0..3 in column 4
+         0..3 in column 3 (not 0..2 because 3 is our own, and we have it)
+         0..1 in column 2
+         0 in column 1
+         nothing in column 0
          (all zero-indexed)
          for index 2:
          x / / / /

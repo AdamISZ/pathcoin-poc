@@ -29,11 +29,11 @@ Payments on the path are free, i.e. literally zero sats cost, and immediate.
 
 #### Caveat
 
-This implementation of the idea is very insecure (python ECC, no testing, nowhere near enough logical checks in code, unreviewed, etc. etc.), very unperformant and the most important part of the code (the fidelity bond logic) has only been implemented fully for 3 parties.
+This implementation of the idea is very insecure (python ECC, no testing, nowhere near enough logical checks in code, unreviewed, etc. etc.), and very unperformant.
 
 (All this is just in case in some distant future, someone thinks they can use this code for mainnet - no, you can't.)
 
-Still it does kind of work (you can fund, spend the musig outputs, transfer with files, reclaim bonds after timelock and penalties for illegal spends work in restricted cases for now).
+Still, it does function correctly - you can fund, spend the musig outputs, transfer the coin with (base64 encoded) files, reclaim bonds after timelock and penalties for illegal spends work.
 
 
 ### Installation:

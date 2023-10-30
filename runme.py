@@ -830,6 +830,7 @@ if method == "penalty":
                                              state.context.master_timelock,
                                              state.context.adaptor_keys[idx_claiming_from],
                                              [state.context.fb_hashlocks[i] for i in range(state.context.n)],
+                                             state.fb_hashlock_preimages,
                                              state.context.get_final_fb_destination(),
                                              state.fb_spending_key,
                                              CKey.from_secret_bytes(state.adaptor_secrets[idx_claiming_from]) # set by `register_illegal`

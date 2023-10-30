@@ -162,10 +162,13 @@ def get_secret_from_spend(txhex: str, secret_offset: bytes,
                           adaptor_key: CPubKey,
                           other_partial_signatures: List[bytes],
                           inidx: int=0) -> bytes:
-    """ Given a transaction `tx` that spends using a signature for which we
-    were already provided an adaptor, we return the corresponding adaptor
-    secret by subtraction. The spending index is provided as the third
-    argument, but it would be fairly trivial to avoid that requirement.
+    """ Given a transaction `txhex` that spends using a signature for which we
+    were already provided an adaptor (secret_offset), we return the
+    corresponding adaptor secret by subtraction of that adaptor *and* all the
+    other partial signatures from the other participants
+    (`other_partial_signatures`).
+    The spending index is provided as the fifth argument, but it would be
+    fairly trivial to avoid that requirement.
     """
     tx = CTransaction.deserialize(hextobin(txhex))
     witness = tx.wit.vtxinwit[0].scriptWitness # assumes only one input here TODO

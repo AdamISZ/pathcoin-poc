@@ -68,7 +68,7 @@ def pathcoin_fidelity_bond_script(pubkey_A: XOnlyPubKey, blockheight: int,
     else:
         script = CScript([OP_IF, blockheight, OP_CHECKLOCKTIMEVERIFY, OP_DROP,
                         pubkey_A, OP_CHECKSIG, OP_ELSE,
-                        hash_image, OP_SHA256, OP_EQUALVERIFY, ctv_hash,
+                        OP_SHA256, hash_image, OP_EQUALVERIFY, ctv_hash,
                         OP_CHECKTEMPLATEVERIFY, OP_DROP, T, OP_CHECKSIG, OP_ENDIF],
                          name="pathcoin1")
     return get_taproot_scriptpubkey_from_script(script), script
@@ -165,8 +165,9 @@ def create_fidelity_bond_sPK(n: int, idx: int, input_amount_sats: int,
             current_ctv_hash,
             hash_image=hash_image)
         # the TxOut for that script pubkey:
-        current_vout = CTxOut(nValue=input_amount_sats - SPENDING_TX_FEE_SATS * (n_txs - i - 2),
-                              scriptPubKey=current_out_sPK)
+        current_vout = CTxOut(
+            nValue=input_amount_sats - SPENDING_TX_FEE_SATS * (n_txs - i - 2),
+            scriptPubKey=current_out_sPK)
         if unwind:
             vouts.append(current_vout)
             scripts.append(current_script)
@@ -176,9 +177,10 @@ def create_fidelity_bond_sPK(n: int, idx: int, input_amount_sats: int,
         return (current_vout, current_script)
 
 def prepare_fb_spending_tx(outpoint: COutPoint, fb_offset_value: int,
-                           payout_sPK: CScript, blockheight: int, ifelse: bool=True) -> CMutableTransaction:
+                           payout_sPK: CScript, blockheight: int,
+                           ifelse: bool=True) -> CMutableTransaction:
     # using nSequence to enable locktimes where they are used, see BIP65
-    vin = [CTxIn(outpoint, nSequence=COMMON_NSEQUENCE_VALUE)] # has to be value fb_value:
+    vin = [CTxIn(outpoint, nSequence=COMMON_NSEQUENCE_VALUE)]
     vout = [CTxOut(nValue=fb_offset_value, scriptPubKey=payout_sPK)]
     tx = CMutableTransaction(vin, vout, nVersion=2)
     # transaction must also satisfy locktime requirement:
@@ -190,39 +192,42 @@ def prepare_fb_spending_tx(outpoint: COutPoint, fb_offset_value: int,
     return tx
 
 def create_fidelity_bond_penalty_tx(idx_claimed_from: int, outpoint: COutPoint,
-                                    payout_sPK: CScript, coin_amount: int,
-                                    n: int, pcindex: int, fb_spending_keys: List[CPubKey],
-                                    blockheight: int, adaptor_key: CPubKey,
-                                    fb_hashlocks: List[bytes], final_fb_destination: CScript,
-                                    signing_key: CKey,
-                                    counterparty_adaptor_secret: CKey) -> CMutableTransaction:
-    """ TODO: This is a braindead fixed 3 party case. Checking if it works, then need
-    to generalize to n-party.
+                    payout_sPK: CScript, coin_amount: int,
+                    n: int, pcindex: int,
+                    fb_spending_keys: List[CPubKey],
+                    blockheight: int, adaptor_key: CPubKey,
+                    fb_hashlocks: List[bytes],
+                    fb_preimages: List[bytes],
+                    final_fb_destination: CScript,
+                    signing_key: CKey,
+                    counterparty_adaptor_secret: CKey) -> CMutableTransaction:
+    """ Create a chain of transactions to claim a penalty, using secrets derived
+    from previously transferred data and an illegal spend.
+    For example:
+    In the simplest case, where B holds the coin and A has illegally spent,
+    we will create two transactions with witnesses fulfilling the requirement.
+    B will claim A's fidelity bond based calculating their adaptor secret (
+    see utils.get_secret_from_spend).
+    Start by creating the list of all txouts and corresponding scripts;
+    then by doing so, find the outpoints being spent in each case, and fill
+    in the witnesses for each transaction.
+    A rough outline of the simplest case (indices 0 and 1, A and B):
+    U_FA,start -> (TX1 via T_A and CTV) -> U_FA,B -> (TX2 via B and CLTV) -> payout
 
-    In the simplest case, we will create two transactions with witnesses
-     fulfilling the requirement. B will claim A's fidelity bond based on having
-     extracted A's secret t_A from:
-     1/ observing the schnorr sig on chain, of the spending transaction.
-     2/ subtracting all the *other* participants'; partial signatures for that
-        signing session.
-     3. Thus deducing sigma_A1 and comparing it with the adaptor sigma'_A1.
-     4. This should reveal t_A which can be verified against the published T_A.
-
-     Start by creating the outpoint of the first transaction, then we create
-     the second transaction, confirm it has the right CTV hash, fulfill its witness and then
-     that of the first transaction. A rough outline:
-     U_FA,start -> (TX1 via T_A and CTV) -> U_FA,B -> (TX2 via B and CLTV) -> payout
+    A list of signed transactions is returned.
     """
     fb_value = int(coin_amount * pc_single().fidelity_bond_multiplier)
     
     # reconstruct the sPKs, from the first spend out to the one that enacts
-    # the penalty. Note that the lists returned are in reverse order, i.e. they
-    # start at the final destination (which is a plain destination scriptPubKey, p2wpkh).
-    # Note that the blockheight field passed as argument should be the "base"/starting blockheight
-    # lock of the first phase, we always calculate the later ones through offset.
-    # Note that the `index` argument (the 2nd) is always the index *of the participant
-    # whose fidelity bond this is*, which is only "us" for a reclaim; for a penalty, it's
-    # someone else. The adaptor key in these scripts is the one corresponding to *that* index.
+    # the penalty. Note that the lists returned are in reverse order,
+    # i.e. they start at the final destination (which is a plain destination
+    # scriptPubKey, p2wpkh). Note that the blockheight field passed as argument
+    # should be the "base"/starting blockheight lock of the first phase,
+    # we always calculate the later ones through offset. Note that the `index`
+    # argument (the 2nd) is always the index *of the participant whose fidelity
+    # bond this is*, which is only "us" for a reclaim; for a penalty, it's
+    # someone else. The adaptor key in these scripts is the one corresponding
+    # to *that* index.
     txouts, scripts = create_fidelity_bond_sPK(n, idx_claimed_from,
                                         fb_value,
                                         fb_spending_keys,
@@ -234,31 +239,40 @@ def create_fidelity_bond_penalty_tx(idx_claimed_from: int, outpoint: COutPoint,
     # The first transaction pays *from* the outpoint of the funded
     # fidelity bond (in this case, of A), *to* the script as per above "U_FA,B",
     #, here, scripts[1]
-    tx1 = prepare_fb_spending_tx(outpoint, fb_value - SPENDING_TX_FEE_SATS,
-                                txouts[1].scriptPubKey, blockheight, ifelse=False)
-    #
-    # Creating TX2:
-    txout_for_tx2 = txouts[1]
-    script_for_tx2 = scripts[1] # this is the script we're spending out of
-    # the outpoint of TX2 is the output of TX1, which we already prepared, unsigned.
-    txid1 = tx1.GetTxid()
-    outpoint2 = COutPoint(txid1, 0)
-    tx2 = prepare_fb_spending_tx(outpoint2, fb_value - SPENDING_TX_FEE_SATS*2,
-                                 payout_sPK, blockheight)
-    # for valid witness, need ELSE branch, and need to sign with t_A, T_A:
-    witness2 = create_fidelity_bond_witness(txout=txout_for_tx2,
-                                            script=script_for_tx2,
-                                            signing_key=signing_key, tx=tx2, ifelse=True)
-    tx2.wit.vtxinwit[0] = witness2
-    witness1 = create_fidelity_bond_witness(txout=txouts[2],script=scripts[2],
-                                            signing_key=counterparty_adaptor_secret,
-                                            tx=tx1, ifelse=False)
-    tx1.wit.vtxinwit[0] = witness1
-    # check that the ctv hash of tx1 matches what was in the script:
-    # sanity check that txouts[2] gives the right fidelity bond address:
-    # now we have 2 signed transactions
-    return [tx1, tx2]
-
+    current_outpoint = outpoint
+    txouts = txouts[::-1]
+    scripts = scripts[::-1]
+    txs = []
+    for i in range(pcindex - idx_claimed_from + 1):
+        # we use the OP_IF clause only for the last sPK, and the
+        # ELSE clause (containing CTV) for the others.
+        ie = True if i == pcindex - idx_claimed_from else False
+        # the last transaction we prepare should go to our chosen
+        # destination, not to the next scriptpubkey in the CTV chain:
+        sPK = payout_sPK if i == pcindex - idx_claimed_from else \
+            txouts[i+1].scriptPubKey
+        tx = prepare_fb_spending_tx(current_outpoint,
+            fb_value - SPENDING_TX_FEE_SATS * (i + 1),
+            sPK, blockheight, ifelse=ie)
+        # the public key that allows us to spend this clause:
+        appropriate_secret = signing_key if ie else counterparty_adaptor_secret
+        # for some script clauses, a hash preimage must be provided. Note that
+        # the value at the index `i` will be valid if the `receive` operation
+        # successfully recorded that preimage.
+        hashsecret = b"" if i == 0 else fb_preimages[i]
+        # use the above data to create a witness to validate the spend:
+        # TODO handle special case: we don't need or want to sign a final
+        # spend out of the final script, *if* this is the final recipient
+        # of the PathCoin.
+        witness = create_fidelity_bond_witness(txouts[i], scripts[i],
+                                               appropriate_secret, tx,
+                                               ifelse=ie,
+                                               hashsecret=hashsecret)
+        tx.wit.vtxinwit[0] = witness
+        current_txid = tx.GetTxid()
+        current_outpoint = COutPoint(current_txid, 0)
+        txs.append(tx)
+    return txs
 
 def create_fidelity_bond_reclaim_transaction(outpoint: COutPoint, payout_sPK: CScript, coin_amount: int,
                                              n: int, pcindex: int, fb_spending_keys: List[CPubKey],
@@ -286,12 +300,15 @@ def create_fidelity_bond_reclaim_transaction(outpoint: COutPoint, payout_sPK: CS
 def create_fidelity_bond_witness(txout: CTxOut, script: CScript,
                                  signing_key: CKey,
                                  tx,
-                                 ifelse: bool=True) -> CTxInWitness:
+                                 ifelse: bool=True,
+                                 hashsecret: bytes=b"") -> CTxInWitness:
     """ This does Schnorr signing on *a* key, for a transaction input,
     in taproot style, but note that it is not for signing a standard
     p2tr type input: it's signing using an arbitrary key in the script,
     with OP_CHECKSIG(ADD). To see the significance of the `ifelse` argument,
     see the function `pathcoin_fidelity_bond_script` above.
+    If `hashsecret` is non-null (requires `ifelse` is False), we include
+    a hash unlock clause in the witness.
     """
     raw_script = bytes(script)
     new_script = CScript(raw_script, name="pathcoin1")
@@ -304,4 +321,8 @@ def create_fidelity_bond_witness(txout: CTxOut, script: CScript,
     sig = signing_key.sign_schnorr_no_tweak(sh)
     # need to respect MINIMALIF in taproot:
     ifelsebyte = b"\x01" if ifelse else b""
-    return CTxInWitness(CScriptWitness([sig, ifelsebyte, s, cb])) 
+    if not ifelse and hashsecret != b"":
+        w = [sig, hashsecret, ifelsebyte, s, cb]
+    else:
+        w = [sig, ifelsebyte, s, cb]
+    return CTxInWitness(CScriptWitness(w))
