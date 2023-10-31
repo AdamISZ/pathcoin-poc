@@ -210,7 +210,7 @@ class PathCoinParticipant(object):
             return
         self.factories[index] = PCLineClientFactory(self.receive_message,
         self.register_connection, self.register_disconnection)
-        if not onion.endswith("onion"):
+        if isinstance(onion, int):
             # testing mode using localhost:
             self.tcp_connector = reactor.connectTCP("127.0.0.1", int(onion),
                                                     self.factories[index])
@@ -703,8 +703,13 @@ else:
 
     load_program_config()
 
-    onionstr = pc_single().config.get("NETWORK", "onions")
-    onions = onionstr.split(",")
+    if options.testing:
+        baseport = pc_single().config.getint("NETWORK",
+                                             "testing_port_base")
+        onions = range(baseport, baseport + ncounterparties)
+    else:
+        onionstr = pc_single().config.get("NETWORK", "onions")
+        onions = onionstr.split(",")
     assert len(onions) == ncounterparties, "you must provide exactly one onion address per counterparty"
 
 if method == "setup":
@@ -756,7 +761,12 @@ if method == "spend":
     xonlyaggR = XOnlyPubKey(state.agg_Rs[state.contrib_context.idx])
     rs = xonlyaggR + s
     tx.wit.vtxinwit[0] = CTxInWitness(CScriptWitness([rs]))
-    print(human_readable_transaction(tx))
+    if not pc_single().bc_interface.pushtx(tx.serialize()):
+        pcprint("Failed to broadcast transaction!", "error")
+        print(human_readable_transaction(tx))
+    else:
+        pcprint("Spending transaction broadcast successfully: " + \
+                hexlify(tx.GetTxid()[::-1]).decode())
 
 if method == "reclaim":
     outpoint_str = args[4]
@@ -778,10 +788,12 @@ if method == "reclaim":
                                              state.context.get_final_fb_destination(),
                                              state.fb_spending_key)
 
-    print(human_readable_transaction(signed_tx))
-    success = pc_single().bc_interface.pushtx(signed_tx.serialize())
-    msg = "Broadcast successful" if success else "Broadcast failed"
-    print(msg)
+    if not pc_single().bc_interface.pushtx(signed_tx.serialize()):
+        pcprint("Failed to broadcast transaction!", "error")
+        print(human_readable_transaction(signed_tx))
+    else:
+        pcprint("Spending transaction broadcast successfully: " +\
+                hexlify(signed_tx.GetTxid()[::-1]).decode())
 
 if method == "penalty":
     idx_claiming_from = int(args[4])
@@ -834,7 +846,13 @@ if method == "penalty":
                                              state.fb_spending_key,
                                              CKey.from_secret_bytes(state.adaptor_secrets[idx_claiming_from]) # set by `register_illegal`
                                              )
-    print(*[human_readable_transaction(x) for x in signed_txs])
+    for tx in signed_txs:
+        if not pc_single().bc_interface.pushtx(tx.serialize()):
+            pcprint("Failed to broadcast transaction!", "error")
+            print(human_readable_transaction(tx))
+        else:
+            pcprint("Penalty transaction broadcast successfully: " +\
+                    hexlify(tx.GetTxid()[::-1]).decode())
 
 if options.testing:
     reactor.listenTCP(int(onions[myindex]), PCLineFactory(x))

@@ -283,7 +283,7 @@ def create_fidelity_bond_reclaim_transaction(outpoint: COutPoint, payout_sPK: CS
     # the normal path in which the originator of the FB just reclaims the money after
     # the timelock.
     fb_value = int(coin_amount * pc_single().fidelity_bond_multiplier)
-    tx = prepare_fb_spending_tx(outpoint, fb_value,
+    tx = prepare_fb_spending_tx(outpoint, fb_value - SPENDING_TX_FEE_SATS,
                                 payout_sPK, blockheight)
     # reconstruct the sPK of the input:
     txout, script = create_fidelity_bond_sPK(n, pcindex,

@@ -512,7 +512,8 @@ class BitcoinCoreInterface(BlockchainInterface):
         if method not in ['importaddress', 'walletpassphrase', 'getaccount',
                           'gettransaction', 'getrawtransaction', 'gettxout',
                           'importmulti', 'listtransactions', 'getblockcount',
-                          'scantxoutset', 'getblock', 'getblockhash']:
+                          'scantxoutset', 'getblock', 'getblockhash',
+                          'sendrawtransaction']:
             pcprint('rpc: ' + method + " " + str(args))
         try:
             res = self.jsonRpc.call(method, args)
