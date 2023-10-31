@@ -697,38 +697,41 @@ else:
     if method == "help":
         get_help(args[1])
         exit(0)
+    # all methods require us to define
+    # *our* index because we use this to find the
+    # state file:
     myindex = int(args[1])
-    ncounterparties = int(args[2])
-    coin_amount = int(args[3])
 
     load_program_config()
 
-    if options.testing:
-        baseport = pc_single().config.getint("NETWORK",
-                                             "testing_port_base")
-        onions = range(baseport, baseport + ncounterparties)
-    else:
-        onionstr = pc_single().config.get("NETWORK", "onions")
-        onions = onionstr.split(",")
-    assert len(onions) == ncounterparties, "you must provide exactly one onion address per counterparty"
+if method in ["presign", "send", "spend", "receive", "reclaim", "penalty"]:
+    with open(PATHCOIN_FILENAME_PREFIX + str(myindex), "rb") as f:
+        state = PathCoinParticipantState.stream_deserialize(f)
+    coin_amount = state.context.coin_amount
 
-if method == "setup":
+elif method == "setup":
+    ncounterparties = int(args[2])
+    coin_amount = int(args[3])
     my_destination = args[4]
     my_sPK = CCoinAddress(my_destination).to_scriptPubKey()    
     master_timelock = int(args[5])
     context = PathCoinContext(ncounterparties, coin_amount, master_timelock)
     state = PathCoinParticipantState(myindex, context, my_sPK)
-    x = PathCoinParticipant(onions, state, coin_amount)
-    x.mode = method
 
-if method in ["presign", "send", "spend", "receive", "reclaim", "penalty"]:
-    with open(PATHCOIN_FILENAME_PREFIX + str(myindex), "rb") as f:
-        state = PathCoinParticipantState.stream_deserialize(f)
-    x = PathCoinParticipant(onions, state, coin_amount)
-    x.mode = method
+if options.testing:
+    baseport = pc_single().config.getint("NETWORK",
+                                         "testing_port_base")
+    onions = range(baseport, baseport + state.context.n)
+else:
+    onionstr = pc_single().config.get("NETWORK", "onions")
+    onions = onionstr.split(",")
+assert len(onions) == state.context.n, "you must provide exactly one onion address per counterparty"
+
+x = PathCoinParticipant(onions, state, coin_amount)
+x.mode = method
 
 if method == "presign" and myindex == 0:
-    my_utxo_str = args[4]
+    my_utxo_str = args[2]
     x.send_funding_message(my_utxo_str)
 
 if method == "send":
@@ -741,7 +744,7 @@ if method == "receive":
     # preceding fidelity bonds were funded, or,
     # we can include the ability to check that on the blockchain
     # here, as an option.
-    x.receive_coin(args[4])
+    x.receive_coin(args[2])
 
 if method == "spend":
     # pays out directly on the pathcoin with musig:
@@ -769,8 +772,8 @@ if method == "spend":
                 hexlify(tx.GetTxid()[::-1]).decode())
 
 if method == "reclaim":
-    outpoint_str = args[4]
-    payout_address = args[5]
+    outpoint_str = args[2]
+    payout_address = args[3]
     payout_sPK = CCoinAddress(payout_address).to_scriptPubKey()
     success, txidout = utxostr_to_utxo(outpoint_str)
     assert success, "Invalid utxo string"
@@ -796,10 +799,10 @@ if method == "reclaim":
                 hexlify(signed_tx.GetTxid()[::-1]).decode())
 
 if method == "penalty":
-    idx_claiming_from = int(args[4])
-    outpoint_str = args[5]
-    payout_address = args[6]
-    illegal_spend_tx = args[7]
+    idx_claiming_from = int(args[2])
+    outpoint_str = args[3]
+    payout_address = args[4]
+    illegal_spend_tx = args[5]
     payout_sPK = CCoinAddress(payout_address).to_scriptPubKey()
     success, txidout = utxostr_to_utxo(outpoint_str)
     assert success, "Invalid utxo string"
@@ -855,7 +858,7 @@ if method == "penalty":
                     hexlify(tx.GetTxid()[::-1]).decode())
 
 if options.testing:
-    reactor.listenTCP(int(onions[myindex]), PCLineFactory(x))
+    reactor.listenTCP(onions[myindex], PCLineFactory(x))
 else:
     hs = HiddenService(PCLineFactory(x), print,
                                           print,
