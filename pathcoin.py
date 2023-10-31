@@ -462,6 +462,8 @@ class PathCoinParticipantState(Serializable):
         # need to keep track of whether we had to flip our nonce parity
         # after musig aggregation:
         self.nonce_sign_flipped = {}
+        for i in range(self.context.n):
+            self.nonce_sign_flipped[i] = b"\x00"
         # initialize our row of the nxn matrix of nonce points:
         self.nonce_points = {idx: [privkey_to_pubkey(x) for x in self.nonces]}
         # initialize our row of the nxn matrix of nonce points and commitments:
@@ -532,32 +534,34 @@ class PathCoinParticipantState(Serializable):
                 return True
         return False
 
-    def set_aggregate_Rs(self):
+    def set_aggregate_Rs(self, check_sign=True):
+        """ This function is called in two different contexts,
+            hence `check_sign`:
+            1: Initial setup: we need to flip the sign of our individual
+               nonce contribution, if the aggregate R has odd parity.
+            2: Deserialization: if we are loading the state from a bytestream,
+               we do *not* need to flip the sign, as it's already been done.
+        """
         for idx in range(self.context.n):
             key_list = []
             for i in range(self.context.n):
                 key_list.append(self.nonce_points[i][idx]) # i: participant ; idx: signing session
-            # we don't add the adaptor, commented out:
-            # key_list.append(self.context.adaptor_keys[idx])
             self.agg_Rs[idx] = CPubKey.combine(*[CPubKey(np) for np in key_list])
-            self.reset_base_nonce_with_aggR(idx)
+            if check_sign:
+                self.reset_base_nonce_with_aggR(idx)
             # having completed setting of nonce values, we signal that
             # nonces are ready for signature processing
             self.all_nonces_complete = True
 
-    def reset_base_nonce_with_aggR(self, idx: int, include_t: bool=False):
+    def reset_base_nonce_with_aggR(self, idx: int):
         """deduces whether the base nonce sign, for this
         participant, for this signing session, needs to be flipped,
         depending on the aggregate nonce's parity.
         """
         scalarlist = [self.nonces[idx]]
-        if include_t:
-            scalarlist.append(self.adaptor_secret)
         newscalarlist, x = its_not_ok_to_be_odd_in_bip340(
             self.agg_Rs[idx], scalarlist)
         self.nonces[idx] = newscalarlist[0]
-        if include_t:
-            self.adaptor_secret = newscalarlist[1]
         self.nonce_sign_flipped[idx] = x
 
     def set_context_contribution(self, idx, contrib: PathCoinContextContribution) -> None:
@@ -676,10 +680,13 @@ class PathCoinParticipantState(Serializable):
         if funded:
             to_print.append("All nonce points: {}".format(self.nonce_points))
             to_print.append("All adaptor points: {}".format(self.context.adaptor_keys))
-        to_print.append("All known partial signatures: {}".format(self.partial_sigs))
-        to_print.append("All known adaptor signatures: {}".format(self.signature_adaptors))
-        from pprint import pformat
-        return pformat(to_print)
+        for i in range(self.context.n):
+            to_print.append("Partial sigs from {}: {}".format(i, [hexlify(x).decode() for x in self.partial_sigs[i]]))
+        for i in range(self.context.n):
+            to_print.append("Adaptor sig for {}: {}".format(i, hexlify(self.signature_adaptors[i]).decode()))
+        #from pprint import pformat
+        #return pformat(to_print)
+        return to_print
 
     def stream_serialize(self, f: ByteStream_Type, funding: bool=False,
                          **kwargs: Any) -> None:
@@ -695,9 +702,10 @@ class PathCoinParticipantState(Serializable):
         8. The fidelity bond spending private key of this user.
         9. The fidelity bond hashlock preimage of this user.
         10a. (Optional): This user's k values.
-        10b. (Optional): All R values. (must be a complete list)
-        10c. (Optional): This user's t value.
-        10d. (Optional): All T values.
+        10b. (Optional): Nonce sign flipped variable for each signing session.
+        10c. (Optional): All R values. (must be a complete list)
+        10d. (Optional): This user's t value.
+        10e. (Optional): All T values.
         11. (Optional): All known partial signatures.
         12. (Optional): All known signature adaptors.
         13. (Optional): All known fidelity bond hashlock preimages.
@@ -766,6 +774,10 @@ class PathCoinParticipantState(Serializable):
             for i in range(self.context.n):
                 BytesSerializer.stream_serialize(self.nonces[i],
                                                  f, **kwargs)
+            for i in range(self.context.n):
+                to_serialize = b"\x01" if self.nonce_sign_flipped[i] else b"\x00"
+                BytesSerializer.stream_serialize(to_serialize,
+                                                 f, **kwargs)
             # all R values (see above reasoning why it *must* be all):
             for i in range(self.context.n):
                 for j in range(self.context.n):
@@ -827,6 +839,11 @@ class PathCoinParticipantState(Serializable):
             for _ in range(n):
                 v_nonces.append(BytesSerializer.stream_deserialize(
                     f, **kwargs))
+            nsf = {}
+            for i in range(n):
+                b = BytesSerializer.stream_deserialize(
+                    f, **kwargs)
+                nsf[i] = True if b == b"\x01" else False
             nps = {}
             for i in range(n):
                 nps[i] = []
@@ -871,16 +888,18 @@ class PathCoinParticipantState(Serializable):
             inst.context.outpoint = outpoint
             inst.context.spending_out = new_spending_out
             inst.context.set_spending_transactions()
+            inst.nonce_sign_flipped = nsf
             inst.nonce_points = nps
             inst.adaptor_secret = adaptor_secret
             inst.context.adaptor_keys = v_adaptor_keys
             inst.partial_sigs = partial_sigs
-            inst.signature_adaptors = sig_adaptors
+            # signature_adaptors is a dict in case we need other indices
+            inst.signature_adaptors = dict((y, sig_adaptors[y]) for y in range(n))
             inst.fb_hashlock_preimages = fb_hashlock_preimages
             # deserialization in the funding case requires
             # fully populated nonce matrix, so aggregates must
             # be recalculated
-            inst.set_aggregate_Rs()
+            inst.set_aggregate_Rs(False)
         return inst
         
     def save(self, funding=False) -> None:

@@ -379,7 +379,6 @@ class PathCoinParticipant(object):
             idx=index, nonce_points=[unhexlify(x) for x in msg.get_vals()])
         if complete:
             # set aggregate Rs will have been called, we are ready to sign.
-            # Then code the sending of the correct subset to each counterparty.
             self.state.set_all_my_partial_signatures(*self.signer.set_all_partial_signatures())
             self.send_initial_partial_signatures()
 
