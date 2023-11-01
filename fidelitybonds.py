@@ -259,7 +259,7 @@ def create_fidelity_bond_penalty_tx(idx_claimed_from: int, outpoint: COutPoint,
         # for some script clauses, a hash preimage must be provided. Note that
         # the value at the index `i` will be valid if the `receive` operation
         # successfully recorded that preimage.
-        hashsecret = b"" if i == 0 else fb_preimages[i]
+        hashsecret = b"" if i == 0 else fb_preimages[i + idx_claimed_from]
         # use the above data to create a witness to validate the spend:
         # TODO handle special case: we don't need or want to sign a final
         # spend out of the final script, *if* this is the final recipient
