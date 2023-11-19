@@ -688,7 +688,6 @@ options, args = get_runme_parser()
 # TODO put it in the config file
 
 if options.bootstrap:
-    onions = ["", "", ""]
     method = "nomethod"
     myindex = args[0]
     x = DummyClient()
@@ -702,7 +701,7 @@ else:
     # state file:
     myindex = int(args[1])
 
-    load_program_config()
+load_program_config()
 
 if method in ["presign", "send", "spend", "receive", "reclaim", "penalty"]:
     with open(PATHCOIN_FILENAME_PREFIX + str(myindex), "rb") as f:
@@ -725,10 +724,11 @@ if options.testing:
 else:
     onionstr = pc_single().config.get("NETWORK", "onions")
     onions = onionstr.split(",")
-assert len(onions) == state.context.n, "you must provide exactly one onion address per counterparty"
 
-x = PathCoinParticipant(onions, state, coin_amount)
-x.mode = method
+if not options.bootstrap:
+    assert len(onions) == state.context.n, "you must provide exactly one onion address per counterparty"
+    x = PathCoinParticipant(onions, state, coin_amount)
+    x.mode = method
 
 if method == "presign" and myindex == 0:
     my_utxo_str = args[2]
